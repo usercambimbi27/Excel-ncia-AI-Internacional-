@@ -11,6 +11,7 @@ import { ChatTab } from "@/components/excelencia/ChatTab";
 import { ProgressTab } from "@/components/excelencia/ProgressTab";
 import { RankingTab } from "@/components/excelencia/RankingTab";
 import { TutorTab } from "@/components/excelencia/TutorTab";
+import { Splash } from "@/components/excelencia/Splash";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -34,7 +35,7 @@ export const Route = createFileRoute("/")({
   ssr: false,
 });
 
-function App() {
+function AppInner() {
   const store = useAppState();
   const { state, hydrated, update } = store;
   const [tab, setTab] = useState<TabId>("home");
@@ -111,5 +112,14 @@ function App() {
       <AppMenu store={store} />
       <BottomNav active={tab} onChange={changeTab} />
     </div>
+  );
+}
+
+function App() {
+  return (
+    <>
+      <AppInner />
+      <Splash />
+    </>
   );
 }
