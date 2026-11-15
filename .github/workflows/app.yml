@@ -1,0 +1,27 @@
+name: Preparar projeto
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  preparar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extrair e preparar
+        run: |
+          mkdir tmp
+          unzip -oq ./*.zip -d tmp
+          cp -a tmp/*/. .
+          rm -rf tmp ./*.zip
+          sed -i 's/appId: "ao.excelencia.ai"/appId: "ao.excelencia.ai.v5"/; s/appName: "Excelência AI English"/appName: "Excelência AI v5"/' capacitor.config.ts
+          grep -n "appId\|appName" capacitor.config.ts
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add -A
+          git commit -m "Preparar projeto v5"
+          git push
