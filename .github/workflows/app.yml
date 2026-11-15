@@ -14,6 +14,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Verificar configuração
+        run: |
+          echo "Endereço do servidor: '$CAPACITOR_SERVER_URL'"
+          if [ -z "$CAPACITOR_SERVER_URL" ]; then echo "ERRO: a variável CAPACITOR_SERVER_URL está vazia ou não existe"; exit 1; fi
+          case "$CAPACITOR_SERVER_URL" in https://*) ;; *) echo "ERRO: o endereço tem de começar por https://"; exit 1;; esac
+          case "$CAPACITOR_SERVER_URL" in */) echo "ERRO: o endereço não pode acabar com /"; exit 1;; esac
+          if [ ! -f icone-app.png ]; then echo "ERRO: icone-app.png não está na raiz do repositório"; ls; exit 1; fi
+          CODE=$(curl -s -o /dev/null -w "%{http_code}" -L --max-time 30 "$CAPACITOR_SERVER_URL" || true)
+          echo "Resposta do site: $CODE"
+          if [ "$CODE" != "200" ]; then echo "ERRO: o site não responde (código $CODE). Confirma o endereço e o deploy no Netlify"; exit 1; fi
+          echo "Configuração OK"
+
       - name: Node 22
         uses: actions/setup-node@v4
         with:
@@ -56,7 +68,6 @@ jobs:
 
       - name: Ícone do app
         run: |
-          if [ ! -f icone-app.png ]; then echo "icone-app.png não encontrado, a manter o ícone padrão"; exit 0; fi
           if ! command -v convert >/dev/null 2>&1 && ! command -v magick >/dev/null 2>&1; then
             sudo apt-get update -qq && sudo apt-get install -y -qq imagemagick
           fi
@@ -76,9 +87,18 @@ jobs:
           for n in ic_launcher ic_launcher_round; do
             printf '%s\n' '<?xml version="1.0" encoding="utf-8"?>' '<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">' '    <background android:drawable="@color/ic_launcher_background"/>' '    <foreground android:drawable="@mipmap/ic_launcher_foreground"/>' '</adaptive-icon>' > $RES/mipmap-anydpi-v26/$n.xml
           done
+          ls -la $RES/mipmap-xxxhdpi
+          test -s $RES/mipmap-xxxhdpi/ic_launcher_foreground.png
 
       - name: Sincronizar Capacitor
         run: npx cap sync android
+
+      - name: Confirmar servidor no APK
+        run: |
+          F=android/app/src/main/assets/capacitor.config.json
+          cat $F
+          grep -q "$CAPACITOR_SERVER_URL" $F || { echo "ERRO: o endereço não entrou no APK"; exit 1; }
+          grep -n "appId" $F
 
       - name: Gerar APK
         working-directory: android
