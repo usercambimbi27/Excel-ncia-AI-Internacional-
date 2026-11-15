@@ -1,27 +1,71 @@
-name: Preparar projeto
+name: Build Android APK
 
 on:
+  push:
+    branches: [main, principal]
   workflow_dispatch:
 
-permissions:
-  contents: write
-
 jobs:
-  preparar:
+  build:
     runs-on: ubuntu-latest
+    env:
+      CAPACITOR_SERVER_URL: ${{ vars.CAPACITOR_SERVER_URL }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Extrair e preparar
+      - name: Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Instalar dependências
+        run: bun install
+
+      - name: Plugin de notificações
+        run: bun add @capacitor/local-notifications@^8
+
+      - name: Compilar a versão web para mobile
+        run: MOBILE_BUILD=1 npx vite build
+
+      - name: Localizar o index.html
         run: |
-          mkdir tmp
-          unzip -oq ./*.zip -d tmp
-          cp -a tmp/*/. .
-          rm -rf tmp ./*.zip
-          sed -i 's/appId: "ao.excelencia.ai"/appId: "ao.excelencia.ai.v5"/; s/appName: "Excelência AI English"/appName: "Excelência AI v5"/' capacitor.config.ts
-          grep -n "appId\|appName" capacitor.config.ts
-          git config user.name "github-actions"
-          git config user.email "actions@github.com"
-          git add -A
-          git commit -m "Preparar projeto v5"
-          git push
+          SRC=$(find . -name index.html -not -path "./node_modules/*" -not -path "./android/*" | head -1 | xargs dirname)
+          echo "Pasta escolhida: $SRC"
+          test -n "$SRC"
+          mkdir -p dist/client
+          if [ "$SRC" != "./dist/client" ]; then cp -r "$SRC"/. dist/client/; fi
+          test -f dist/client/index.html
+
+      - name: Criar projeto Android
+        run: npx cap add android
+
+      - name: Permissões (microfone e notificações)
+        run: |
+          sed -i 's#</manifest>#    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n</manifest>#' android/app/src/main/AndroidManifest.xml
+          grep -n "uses-permission" android/app/src/main/AndroidManifest.xml
+
+      - name: Sincronizar Capacitor
+        run: npx cap sync android
+
+      - name: Gerar APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Guardar APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: excelencia-ai-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30
