@@ -54,6 +54,29 @@ jobs:
           sed -i 's#</manifest>#    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n</manifest>#' android/app/src/main/AndroidManifest.xml
           grep -n "uses-permission" android/app/src/main/AndroidManifest.xml
 
+      - name: Ícone do app
+        run: |
+          if [ ! -f icone-app.png ]; then echo "icone-app.png não encontrado, a manter o ícone padrão"; exit 0; fi
+          if ! command -v convert >/dev/null 2>&1 && ! command -v magick >/dev/null 2>&1; then
+            sudo apt-get update -qq && sudo apt-get install -y -qq imagemagick
+          fi
+          IM=convert
+          if command -v magick >/dev/null 2>&1; then IM=magick; fi
+          RES=android/app/src/main/res
+          rm -f $RES/drawable-v24/ic_launcher_foreground.xml $RES/drawable/ic_launcher_background.xml
+          for d in "mdpi 48 108" "hdpi 72 162" "xhdpi 96 216" "xxhdpi 144 324" "xxxhdpi 192 432"; do
+            set -- $d
+            mkdir -p $RES/mipmap-$1
+            $IM icone-app.png -resize ${2}x${2} $RES/mipmap-$1/ic_launcher.png
+            $IM icone-app.png -resize ${2}x${2} $RES/mipmap-$1/ic_launcher_round.png
+            $IM icone-app.png -resize ${3}x${3} $RES/mipmap-$1/ic_launcher_foreground.png
+          done
+          mkdir -p $RES/mipmap-anydpi-v26 $RES/values
+          printf '%s\n' '<?xml version="1.0" encoding="utf-8"?>' '<resources>' '    <color name="ic_launcher_background">#000B39</color>' '</resources>' > $RES/values/ic_launcher_background.xml
+          for n in ic_launcher ic_launcher_round; do
+            printf '%s\n' '<?xml version="1.0" encoding="utf-8"?>' '<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">' '    <background android:drawable="@color/ic_launcher_background"/>' '    <foreground android:drawable="@mipmap/ic_launcher_foreground"/>' '</adaptive-icon>' > $RES/mipmap-anydpi-v26/$n.xml
+          done
+
       - name: Sincronizar Capacitor
         run: npx cap sync android
 
