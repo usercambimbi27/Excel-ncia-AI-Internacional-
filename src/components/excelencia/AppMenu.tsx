@@ -35,7 +35,7 @@ export function AppMenu({ store }: { store: AppStore }) {
   const tryUnlock = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
-    const { ok } = await unlock({ data: { password: pw } });
+    const { ok } = await unlock({ data: { password: pw.trim() } });
     setBusy(false);
     setPwErr(!ok);
     if (ok) { setUnlocked(true); setPw(""); }
@@ -123,7 +123,7 @@ export function AppMenu({ store }: { store: AppStore }) {
           <h3 className="flex items-center gap-2 font-semibold"><Lock className="h-4 w-4" /> Palavra-passe</h3>
           {!unlocked ? (
             <form onSubmit={tryUnlock} className="space-y-2">
-              <Input type="password" value={pw} onChange={(e) => { setPw(e.target.value); setPwErr(false); }} autoComplete="off" />
+              <Input type="password" value={pw} onChange={(e) => { setPw(e.target.value); setPwErr(false); }} autoComplete="off" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
               {pwErr && <p className="text-sm text-destructive">Palavra-passe incorreta</p>}
               <Button type="submit" disabled={busy || !pw} className="w-full">Entrar</Button>
             </form>
@@ -152,4 +152,4 @@ export function AppMenu({ store }: { store: AppStore }) {
       </SheetContent>
     </Sheet>
   );
-}
+      }
